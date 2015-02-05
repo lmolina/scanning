@@ -1,0 +1,7 @@
+To compile:
+
+$ g++ test_scan.cpp scan.cpp -lsqlite3 -std=c++11
+
+To execute:
+$ ./a.out test_18.1..db full
+
