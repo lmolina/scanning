@@ -1,7 +1,9 @@
 To compile:
 
-$ g++ test_scan.cpp scan.cpp -lsqlite3 -std=c++11
+$ g++ -o test_scan test_scan.cpp scan.cpp -lsqlite3 -std=c++11
+$ g++ -o test_campaign test_campaign.cpp scan.cpp -lsqlite3 -std=c++11
 
 To execute:
-$ ./a.out test_18.1..db full
+$ ./test_scan test_18.1.db full
+$ ./test_campaign test_18.1.db full
 

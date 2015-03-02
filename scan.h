@@ -2,9 +2,11 @@
 #define SCAN_H
 
 #include <iostream>
+
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <algorithm>
 
 #include <cstdio>
@@ -21,6 +23,13 @@ struct ProbeResponse {
   std::string ssid;
   std::string bssid;
   std::string type;
+};
+
+struct BssidCmp {
+  bool operator() (const ProbeResponse & lhs,
+      const ProbeResponse & rhs) const {
+    return lhs.bssid < rhs.bssid;
+  }
 };
 
 static bool cmp(const ProbeResponse & a, const ProbeResponse & b) {
@@ -138,10 +147,10 @@ class ScanningCampaing {
 
       N = scans.size();
 
-      for(auto & i: scans) {
+      //for(auto & i: scans) {
         // TODO: check the cmp operator
         //std::sort(i.begin(), i.end(), cmp);
-      }
+      //}
 
       // Prepare the random generator
       std::random_device rd;
@@ -175,8 +184,8 @@ class ScanningCampaing {
       ScanResults r;
 
       //unsigned int scanId = rand() % N;
-      //unsigned int scan_id = (*rand)(*gen);
-      unsigned int scan_id = 10;
+      unsigned int scan_id = (*rand)(*gen);
+      //unsigned int scan_id = 10;
       scan = scans[scan_id];
 
       channel = scan.channel(ch);
@@ -195,6 +204,67 @@ class ScanningCampaing {
           r.push_back(all_responses[i]);
         else
           return r;
+      }
+
+      return r;
+    }
+
+    /**
+     * num_ch is the number of channels to scan
+     * chan_list holds the channel sequence order
+     * min_ch_values holds the MinCT values according to the chan_seq order
+     * max_ch_values holds the MaxCT values according to the chan_seq order
+     *
+     * len(chan_seq) == len(min_ch_values) == len(max_ch_values) == num_ch 
+     *
+     * This method will loop over all the scans registered and emulate the
+     * results based on the specified parameters
+     */
+    ScanResults emulateScanInAllPoints(int num_ch, int * chan_list,
+        int * min_ch_values, int * max_ch_values) {
+
+      ScanResult scan;
+      Channel channel;
+      std::vector<ProbeResponse> all_responses;
+      ScanResults r;
+
+      std::set<ProbeResponse, BssidCmp> myset;
+
+      int min_ct;
+      int max_ct;
+      int ch;
+
+      for (int scan_id = 0; scan_id < N; ++scan_id) {
+        scan = scans[scan_id];
+
+        for (int n = 0; n < num_ch; ++n) {
+          ch = chan_list[n];
+          min_ct = min_ch_values[n];
+          max_ct = max_ch_values[n];
+
+          channel = scan.channel(ch);
+          if (channel.size() <= 0) {
+            continue;
+          }
+
+          all_responses = channel.responses();
+          std::sort(all_responses.begin(), all_responses.end(), cmp);
+          if (min_ct < all_responses[0].delay) {
+            continue;
+          }
+
+          for (int i = 0; i < all_responses.size(); ++i) {
+            if (all_responses[i].delay <= max_ct)
+              myset.insert(all_responses[i]);
+            else
+              break;
+          }
+        }
+      }
+
+      // Copy from the set to the vector
+      for(auto & i: myset) {
+        r.push_back(i);
       }
 
       return r;
