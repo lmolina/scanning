@@ -218,15 +218,16 @@ class ScanningCampaing {
      * len(chan_seq) == len(min_ch_values) == len(max_ch_values) == num_ch 
      *
      * This method will loop over all the scans registered and emulate the
-     * results based on the specified parameters
+     * results based on the specified parameters. It will return a vector
+     * containing the number of APs discovered at each location
      */
-    ScanResults emulateScanInAllPoints(int num_ch, int * chan_list,
+    std::vector<int> emulateScanInAllPoints(int num_ch, int * chan_list,
         int * min_ch_values, int * max_ch_values) {
 
       ScanResult scan;
       Channel channel;
       std::vector<ProbeResponse> all_responses;
-      ScanResults r;
+      std::vector<int> r;
 
       std::set<ProbeResponse, BssidCmp> myset;
 
@@ -234,9 +235,12 @@ class ScanningCampaing {
       int max_ct;
       int ch;
 
+      // Loop over the different scan points
       for (int scan_id = 0; scan_id < N; ++scan_id) {
+        myset.clear();
         scan = scans[scan_id];
 
+        // Loop over the channels to scan
         for (int n = 0; n < num_ch; ++n) {
           ch = chan_list[n];
           min_ct = min_ch_values[n];
@@ -260,11 +264,10 @@ class ScanningCampaing {
               break;
           }
         }
-      }
 
-      // Copy from the set to the vector
-      for(auto & i: myset) {
-        r.push_back(i);
+        // Add to the result the number of discovered APs in the current scan
+        // point
+        r.push_back(myset.size());
       }
 
       return r;

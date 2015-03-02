@@ -24,21 +24,26 @@ int main(int argc, char ** argv) {
   int chan_list[] = {1, 6, 11};
   int min_ch_values[] = {5, 2, 3};
   int max_ch_values[] = {15, 20, 10};
-  ScanningCampaing::ScanResults results = scan.emulateScanInAllPoints(num_ch,
+  std::vector<int> results = scan.emulateScanInAllPoints(num_ch,
       chan_list, min_ch_values, max_ch_values);
-  std::cout << results.size() << " results: " << std::endl;
 
-  for (auto & r: results) {
-    printf("kernel_time: %.9f\n", r.kernel_time);
-    printf("jiffies: %d\n", r.jiffies);
-    std::cout << "type: " << r.type << std::endl;
-    std::cout << "bssid: " << r.bssid << std::endl;
-    std::cout << "ssid: " << r.ssid << std::endl;
-    std::cout << "delay: " << r.delay << std::endl;
-    std::cout << "op_channel: " << r.op_channel << std::endl;
-    std::cout << "nic_channel: " << r.nic_channel << std::endl;
-    std::cout << std::endl;
+  std::cout << results.size() << " " << std::endl;
+  for(auto & i: results) {
+    std::cout << i << std::endl;
   }
+
+  // Copy and paste from
+  // https://stackoverflow.com/questions/7616511/calculate-mean-and-standard-deviation-from-a-vector-of-samples-in-c-using-boos
+  double sum = std::accumulate(results.begin(), results.end(), 0.0);
+  double mean = sum / results.size();
+  std::vector<double> diff(results.size());
+  std::transform(results.begin(), results.end(), diff.begin(),
+                     std::bind2nd(std::minus<double>(), mean));
+  double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+  double stdev = std::sqrt(sq_sum / results.size());
+
+  std::cout << "mean: " << mean << std::endl;
+  std::cout << "stdev: " << stdev << std::endl;
 
   return 0;
 }
