@@ -19,6 +19,7 @@ struct ProbeResponse {
   int nic_channel;
   int delay;
   int jiffies;
+  int prequest;
   float kernel_time;
   std::string ssid;
   std::string bssid;
@@ -72,29 +73,32 @@ class ScanResult {
 
       // Check if the channel already exists in the map, create the channel
       // if necessary
-      if (results.count(ch) == 0) {
+      if (results_.count(ch) == 0) {
         // results[channel_id] = new Channel(channel_id);
-        results[ch] = Channel(ch);
+        results_[ch] = Channel(ch);
       }
 
-      results[ch].addResponse(presp);
+      results_[ch].addResponse(presp);
     }
 
 
     Channel channel(int ch) {
       Channel r;
-      if (results.count(ch) == 0) {
+      if (results_.count(ch) == 0) {
         return r;
       }
 
-      return results[ch];
+      return results_[ch];
     }
 
+    std::map<int, Channel> results() {
+      return results_;
+    }
   private:
 
-    // results group the ProbeResponses registered at each channel. Since we
+    // results_ groups the ProbeResponses registered at each channel. Since we
     // don't know what are the scanned channels, we use a map to holds it
-    std::map<int, Channel> results;
+    std::map<int, Channel> results_;
 };
 
 
@@ -129,7 +133,7 @@ class ScanningCampaing {
       fprintf(stdout, "Database opened successfully :)\n");
 
       std::string sql;
-      sql = "SELECT algorithm, scan, op_channel, nic_channel, jiffies, kernel_time, ssid, bssid, delayj, frame_type ";
+      sql = "SELECT algorithm, scan, op_channel, nic_channel, jiffies, kernel_time, ssid, bssid, delayj, frame_type, prequest";
       sql += " FROM frames ";
       sql += " WHERE algorithm = \"" + experiment + "\";";
 
@@ -274,6 +278,74 @@ class ScanningCampaing {
     }
 
 
+    double timeBetweenResponses(double channel, double response_no) {
+      long n = ird_times[channel][response_no].size();
+      long index;
+
+      if (n == 0) {
+        return -1;
+      }
+
+      if (n == 1) {
+        return ird_times.at(channel).at(response_no)[0];
+      }
+      
+      std::uniform_int_distribution<> ird_rand(0, n - 1);
+      
+      index = ird_rand(*gen);
+      return ird_times.at(channel).at(response_no)[index];
+    }
+
+
+    void prepareIRD() {
+      std::vector<ProbeResponse> presponses;
+      int ch_no;
+      int response_no;
+      int ird;
+      int prev_delay;
+      std::vector<ProbeResponse>::iterator it;
+
+      for (auto & scan: scans) {
+        for (auto & channel: scan.results()) {
+          ch_no = channel.first;
+
+          if (ird_times.count(ch_no) == 0) {
+            ird_times[ch_no] = std::map<int, std::vector<int>>();
+          }
+
+          // For the first Probe Response, there is no previous delay, and
+          // their IRD is equal to the delay
+          prev_delay = 0;
+          response_no = 1;
+          presponses = channel.second.responses();
+          for (it = presponses.begin(); it != presponses.end();
+              ++it, ++response_no) {
+
+            if (ird_times[ch_no].count(response_no) == 0) {
+              ird_times[ch_no][response_no] = std::vector<int>();
+            }
+
+            ird = it->delay - prev_delay;
+            ird_times[ch_no][response_no].push_back(ird);
+            prev_delay = it->delay;
+          }
+        }
+      }
+
+      for (auto & ch : ird_times) {
+        fprintf(stderr, "%d => \n", ch.first);
+        for (auto & responses : ch.second) {
+          std::sort(responses.second.begin(), responses.second.end());
+          fprintf(stderr, "    %d (%d)=> [", responses.first, responses.second.size());
+          for (auto & response : responses.second) {
+            fprintf(stderr, "%d ", response);
+          }
+          fprintf(stderr, "]\n");
+        }
+      }
+      printf("\n");
+    }
+
   private:
     static int callback(void* data, int argc, char **argv, char **colName) {
       ProbeResponse buffer;
@@ -312,6 +384,9 @@ class ScanningCampaing {
         else if (strcmp(colName[i], "frame_type") == 0) {
           buffer.type = std::string(argv[i]);
         }
+        else if (strcmp(colName[i], "prequest") == 0) {
+          buffer.prequest = atoi(argv[i]);
+        }
       }
 
 
@@ -327,18 +402,23 @@ class ScanningCampaing {
     }
 
 
-
     // One ScanResult contains the set of results obtained when a real
     // scanning was triggered in a real machine, this could be related to a
     // fixed location, although, this might not be true if the MS is in
-    // movement. So, the results holds each one of the ScanResult
+    // movement. So, scan holds each one of the ScanResult
     std::vector<ScanResult> scans;
+
+    // Keeps the distribution of the InterResponseTime, one vector position
+    // per channel. Each channel contains one vector position per response
+    // number, so it looks like a table
+    //std::vector<IRDChannel> ird_distributions;
 
     unsigned int N;
     std::string dbName;
     std::string experiment;
     std::uniform_int_distribution<>* rand;
     std::mt19937* gen;
+    std::map<int, std::map<int, std::vector<int>>> ird_times;
 };
 
 #endif
