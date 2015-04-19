@@ -151,11 +151,7 @@ class ScanningCampaing {
 
       N = scans.size();
 
-      //for(auto & i: scans) {
-        // TODO: check the cmp operator
-        //std::sort(i.begin(), i.end(), cmp);
-      //}
-
+      // TODO: find a way to select the seed
       // Prepare the random generator
       std::random_device rd;
       gen = new std::mt19937(rd());
@@ -278,7 +274,15 @@ class ScanningCampaing {
     }
 
 
-    double timeBetweenResponses(double channel, double response_no) {
+    /*
+     * Returns the time that separates a given Probe Response and the
+     * previous one in a given channel. To do this, it randomly selects a
+     * time from the inter-response vector, using the channel and response
+     * number as indicated in the parameters
+     */
+    float timeBetweenResponses(int channel, int response_no) {
+
+      // TODO: verify that the channel and response_no contains valid values
       long n = ird_times[channel][response_no].size();
       long index;
 
@@ -346,6 +350,38 @@ class ScanningCampaing {
       printf("\n");
     }
 
+    /*
+     * Assuming that N = number of times that the indicated channel was
+     * explored. Notice that this is true if the channel is explored in all
+     * scannings
+     */
+    double probabilityChannelEmpty(int channel) {
+      double n = ird_times[channel][1].size();
+      return 1.0 - (n / N);
+    }
+
+    /* Calculate the probability of getting the 1st Probe Response before a
+     * given time
+     *
+     * The probability is calculated assuming that the ird_times are sorted
+     * in increasing order.
+     */
+    double probabilityResponseBefore(int channel, int limit) {
+
+      // TODO: verify that the parameters exists
+      double n = ird_times[channel][1].size();
+
+      int idx = 0;
+      int time = ird_times[channel][1][idx];
+
+      while(time < limit) {
+        ++idx;
+        time = ird_times[channel][1][idx];
+      }
+
+      return double(idx) / n;
+    }
+
   private:
     static int callback(void* data, int argc, char **argv, char **colName) {
       ProbeResponse buffer;
@@ -402,6 +438,7 @@ class ScanningCampaing {
     }
 
 
+  private:
     // One ScanResult contains the set of results obtained when a real
     // scanning was triggered in a real machine, this could be related to a
     // fixed location, although, this might not be true if the MS is in
