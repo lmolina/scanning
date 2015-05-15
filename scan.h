@@ -286,7 +286,21 @@ class ScanningCampaing {
       long n = ird_times[channel][response_no].size();
       long index;
 
+      // This is true, only and only if each channel is explored once and
+      // only once per scan, this is because N = number of scans
+      double prob_of_response = double(n) / double(N);
+      std::uniform_real_distribution<double> rand_real(0, 1);
+      double num = rand_real(*gen);
+
+      // If no reponses, then return -1 to indicate that there were no
+      // reponses
       if (n == 0) {
+        return -1;
+      }
+
+      // If there are responses but unlucky, return -1 to indicate that there
+      // were no reponses
+      if (num > prob_of_response) {
         return -1;
       }
 

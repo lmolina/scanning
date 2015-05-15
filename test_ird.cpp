@@ -34,10 +34,10 @@ int main(int argc, char ** argv) {
   int response_no = 1;
   
   printf("Time between the first response and the previous one\n");
-  printf("%f\n", scan.timeBetweenResponses(1, channel));
+  printf("%f\n", scan.timeBetweenResponses(channel, response_no));
 
   printf("Time between the second response and the previous one\n");
-  printf("%f\n", scan.timeBetweenResponses(1, channel));
+  printf("%f\n", scan.timeBetweenResponses(channel, response_no));
  
   
   printf("Probability of getting no responses at all in a given channel\n");
