@@ -396,6 +396,74 @@ class ScanningCampaing {
       return double(idx) / n;
     }
 
+     /**
+     * @brief nueva funcion para obtener el numero de APs en un canal dado los parametros
+     * @param channel canal a escanear
+     * @param min MinChannelTime
+     * @param max MaxChannelTime
+     * @return el numero de APs en un canal dado los parametros
+     */
+    int getAPs(int channel, double min, double max) {
+
+        // tiempo de respuesta
+        int auxTime = 0;
+
+        // numero de la respuesta: primeras respuestas, segundas respuestas ...
+        int responseNumber = 1;
+
+        // numero de APs encontrados
+        int apsFound = 0;
+
+        // tiempo de respuesta acumulado por APs encontrados
+        int accumulatedTime = 0;
+
+        // tiempo total de espera: min+max
+        int totalTime = min + max;
+
+        // bandera de primera iteracion
+        bool first = true;
+
+        while(true){
+            auxTime = timeBetweenResponses(channel, responseNumber);
+            //printf("*** timeBetweenResponses(%d, %d) = %d\n", channel, responseNumber, auxTime);
+            if (auxTime == -1) {
+                //return apsFound;
+                break;
+            }
+            //printf("auxTime: %d \n", auxTime);
+
+            accumulatedTime = accumulatedTime + auxTime;
+            //printf("accumulatedTime: %d \n", accumulatedTime);
+
+            if (accumulatedTime > min){
+                if (first){
+                    //printf("	first: apsFound: %d\n", apsFound);
+                    //return apsFound;
+                    break;
+                }else{
+                    if (accumulatedTime <= totalTime){
+                        apsFound++;
+                        responseNumber++;
+                        first = false;
+                    }else{
+                        //printf("	totalTime: apsFound: %d\n", apsFound);
+                        //return apsFound;
+                        break;
+                    }
+                }
+            }else{ // accumulatedTime <= min
+                apsFound++;
+                responseNumber++;
+                first = false;
+            }
+        }
+        return apsFound;
+    }
+
+
+
+
+
   private:
     static int callback(void* data, int argc, char **argv, char **colName) {
       ProbeResponse buffer;
