@@ -21,6 +21,7 @@ struct ProbeResponse {
   int jiffies;
   int prequest;
   float kernel_time;
+  int ird;
   std::string ssid;
   std::string bssid;
   std::string type;
@@ -280,7 +281,7 @@ class ScanningCampaing {
      * time from the inter-response vector, using the channel and response
      * number as indicated in the parameters
      */
-    float timeBetweenResponses(int channel, int response_no) {
+    ProbeResponse timeBetweenResponses(int channel, int response_no) {
 
       // TODO: verify that the channel and response_no contains valid values
       long n = ird_times[channel][response_no].size();
@@ -292,16 +293,22 @@ class ScanningCampaing {
       std::uniform_real_distribution<double> rand_real(0, 1);
       double num = rand_real(*gen);
 
+      // none will be used to indicate that there is no ProbeResponse
+      ProbeResponse none;
+      none.ird = -1;
+      none.ssid = "";
+      none.bssid = "";
+
       // If no reponses, then return -1 to indicate that there were no
       // reponses
       if (n == 0) {
-        return -1;
+        return none;
       }
 
       // If there are responses but unlucky, return -1 to indicate that there
       // were no reponses
       if (num > prob_of_response) {
-        return -1;
+        return none;
       }
 
       if (n == 1) {
@@ -328,7 +335,7 @@ class ScanningCampaing {
           ch_no = channel.first;
 
           if (ird_times.count(ch_no) == 0) {
-            ird_times[ch_no] = std::map<int, std::vector<int>>();
+            ird_times[ch_no] = std::map<int, std::vector<ProbeResponse>>();
           }
 
           // For the first Probe Response, there is no previous delay, and
@@ -340,11 +347,12 @@ class ScanningCampaing {
               ++it, ++response_no) {
 
             if (ird_times[ch_no].count(response_no) == 0) {
-              ird_times[ch_no][response_no] = std::vector<int>();
+              ird_times[ch_no][response_no] = std::vector<ProbeResponse>();
             }
 
             ird = it->delay - prev_delay;
-            ird_times[ch_no][response_no].push_back(ird);
+            it->ird = ird;
+            ird_times[ch_no][response_no].push_back(*it);
             prev_delay = it->delay;
           }
         }
@@ -353,10 +361,10 @@ class ScanningCampaing {
       for (auto & ch : ird_times) {
         fprintf(stderr, "%d => \n", ch.first);
         for (auto & responses : ch.second) {
-          std::sort(responses.second.begin(), responses.second.end());
+          std::sort(responses.second.begin(), responses.second.end(), cmp);
           fprintf(stderr, "    %d (%d)=> [", responses.first, responses.second.size());
           for (auto & response : responses.second) {
-            fprintf(stderr, "%d ", response);
+            fprintf(stderr, "%d ", response.ird);
           }
           fprintf(stderr, "]\n");
         }
@@ -386,11 +394,11 @@ class ScanningCampaing {
       double n = ird_times[channel][1].size();
 
       int idx = 0;
-      int time = ird_times[channel][1][idx];
+      int time = ird_times[channel][1][idx].ird;
 
       while(time < limit) {
         ++idx;
-        time = ird_times[channel][1][idx];
+        time = ird_times[channel][1][idx].ird;
       }
 
       return double(idx) / n;
@@ -423,41 +431,51 @@ class ScanningCampaing {
         // bandera de primera iteracion
         bool first = true;
 
+        // Vector of APs found (it is possible to receive several ProbeResponses
+        // sent by the same AP
+        std::set<std::string> aps;
+
+        ProbeResponse tmp;
+        std::string bssid;
+
         while(true){
-            auxTime = timeBetweenResponses(channel, responseNumber);
-            //printf("*** timeBetweenResponses(%d, %d) = %d\n", channel, responseNumber, auxTime);
-            if (auxTime == -1) {
-                //return apsFound;
-                break;
-            }
-            //printf("auxTime: %d \n", auxTime);
+          tmp = timeBetweenResponses(channel, responseNumber);
+          auxTime = tmp.ird;
+          bssid = tmp.bssid;
 
-            accumulatedTime = accumulatedTime + auxTime;
-            //printf("accumulatedTime: %d \n", accumulatedTime);
+          //printf("*** timeBetweenResponses(%d, %d) = %d\n", channel, responseNumber, auxTime);
+          if (auxTime == -1) {
+            //return apsFound;
+            break;
+          }
+          //printf("auxTime: %d \n", auxTime);
 
-            if (accumulatedTime > min){
-                if (first){
-                    //printf("	first: apsFound: %d\n", apsFound);
-                    //return apsFound;
-                    break;
-                }else{
-                    if (accumulatedTime <= totalTime){
-                        apsFound++;
-                        responseNumber++;
-                        first = false;
-                    }else{
-                        //printf("	totalTime: apsFound: %d\n", apsFound);
-                        //return apsFound;
-                        break;
-                    }
-                }
-            }else{ // accumulatedTime <= min
-                apsFound++;
+          accumulatedTime = accumulatedTime + auxTime;
+          //printf("accumulatedTime: %d \n", accumulatedTime);
+
+          if (accumulatedTime > min){
+            if (first){
+              //printf("	first: apsFound: %d\n", apsFound);
+              //return apsFound;
+              break;
+            }else{
+              if (accumulatedTime <= totalTime){
+                aps.insert(bssid);
                 responseNumber++;
                 first = false;
+              }else{
+                //printf("	totalTime: apsFound: %d\n", apsFound);
+                //return apsFound;
+                break;
+              }
             }
+          }else{ // accumulatedTime <= min
+            aps.insert(bssid);
+            responseNumber++;
+            first = false;
+          }
         }
-        return apsFound;
+        return aps.size();
     }
 
 
@@ -537,7 +555,7 @@ class ScanningCampaing {
     std::string experiment;
     std::uniform_int_distribution<>* rand;
     std::mt19937* gen;
-    std::map<int, std::map<int, std::vector<int>>> ird_times;
+    std::map<int, std::map<int, std::vector<ProbeResponse>>> ird_times;
 };
 
 #endif
