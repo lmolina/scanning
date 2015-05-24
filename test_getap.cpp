@@ -16,8 +16,9 @@ int main(int argc, char ** argv) {
   int min = atoi(argv[4]);
   int max = atoi(argv[5]);
 
-  int aps = 0;
   int maxaps = 0;
+
+  std::vector<ProbeResponse> results;
 
   ScanningCampaing scan(argv[1], argv[2]);
   scan.init();
@@ -25,12 +26,18 @@ int main(int argc, char ** argv) {
   scan.prepareIRD();
 
   for (int i = 0; i<50; i++) {
-        aps = scan.getAPs(ch, min, max);
-        printf("getAPs(%d, %d, %d) = %d \n", ch, min, max, aps);
-        if (aps >= maxaps) {
-                maxaps = aps;
+        results = scan.getAPs(ch, min, max);
+        printf("getAPs(%d, %d, %d) = %d \n", ch, min, max, results.size());
+
+        for (auto presp : results) {
+          printf("  %s - op_ch: %d - nic_ch: %d\n",
+              presp.ssid.c_str(), presp.op_channel, presp.nic_channel);
         }
-        aps = 0;
+
+        if (results.size() >= maxaps) {
+                maxaps = results.size();
+        }
+        printf("\n");
   }
   printf("max: %d \n", maxaps);
 

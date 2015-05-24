@@ -359,17 +359,17 @@ class ScanningCampaing {
       }
 
       for (auto & ch : ird_times) {
-        fprintf(stderr, "%d => \n", ch.first);
+        //fprintf(stderr, "%d => \n", ch.first);
         for (auto & responses : ch.second) {
           std::sort(responses.second.begin(), responses.second.end(), cmp);
-          fprintf(stderr, "    %d (%d)=> [", responses.first, responses.second.size());
-          for (auto & response : responses.second) {
-            fprintf(stderr, "%d ", response.ird);
-          }
-          fprintf(stderr, "]\n");
+          //fprintf(stderr, "    %d (%d)=> [", responses.first, responses.second.size());
+          //for (auto & response : responses.second) {
+            //fprintf(stderr, "%d ", response.ird);
+          //}
+          //fprintf(stderr, "]\n");
         }
       }
-      printf("\n");
+      //printf("\n");
     }
 
     /*
@@ -409,9 +409,9 @@ class ScanningCampaing {
      * @param channel canal a escanear
      * @param min MinChannelTime
      * @param max MaxChannelTime
-     * @return el numero de APs en un canal dado los parametros
+     * @return la lista de los BSSID descubiertos en un canal dado los parametros
      */
-    int getAPs(int channel, double min, double max) {
+    std::vector<ProbeResponse> getAPs(int channel, double min, double max) {
 
         // tiempo de respuesta
         int auxTime = 0;
@@ -433,6 +433,7 @@ class ScanningCampaing {
 
         // Vector of APs found (it is possible to receive several ProbeResponses
         // sent by the same AP
+        std::vector<ProbeResponse> results;
         std::set<std::string> aps;
 
         ProbeResponse tmp;
@@ -460,7 +461,10 @@ class ScanningCampaing {
               break;
             }else{
               if (accumulatedTime <= totalTime){
-                aps.insert(bssid);
+                if (aps.count(bssid) == 0) {
+                  aps.insert(bssid);
+                  results.push_back(tmp);
+                }
                 responseNumber++;
                 first = false;
               }else{
@@ -470,12 +474,15 @@ class ScanningCampaing {
               }
             }
           }else{ // accumulatedTime <= min
-            aps.insert(bssid);
+            if (aps.count(bssid) == 0) {
+              aps.insert(bssid);
+              results.push_back(tmp);
+            }
             responseNumber++;
             first = false;
           }
         }
-        return aps.size();
+        return results;
     }
 
 
