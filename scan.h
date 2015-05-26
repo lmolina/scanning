@@ -107,11 +107,12 @@ class ScanningCampaing {
   public:
     typedef std::vector<ProbeResponse> ScanResults;
 
-    ScanningCampaing(std::string dbName, std::string experiment) {
+    ScanningCampaing(std::string dbName, std::string experiment, uint32_t seed_val = 0) {
       this->dbName = dbName;
       this->experiment = experiment;
       this->rand = NULL;
       this->gen = NULL;
+      this->seed_val = seed_val;
     };
 
     ~ScanningCampaing() {
@@ -152,10 +153,13 @@ class ScanningCampaing {
 
       N = scans.size();
 
-      // TODO: find a way to select the seed
-      // Prepare the random generator
       std::random_device rd;
-      gen = new std::mt19937(rd());
+      if (this->seed_val == 0) {
+        gen = new std::mt19937(rd());
+      }
+      else {
+        gen = new std::mt19937(this->seed_val);
+      }
       rand = new std::uniform_int_distribution<>(0, scans.size() - 1);
     }
 
@@ -562,6 +566,7 @@ class ScanningCampaing {
     std::string experiment;
     std::uniform_int_distribution<>* rand;
     std::mt19937* gen;
+    uint32_t seed_val;
     std::map<int, std::map<int, std::vector<ProbeResponse>>> ird_times;
 };
 
